@@ -1,5 +1,6 @@
-package org.example.exos.jdbc1.classes;
+package org.example.exos.jdbc1.entity;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class Student {
@@ -54,6 +55,7 @@ public class Student {
 
     @Override
     public String toString() {
-        return "Etudiant " + id + " : " + firstName + " " + lastName + " - classe " + classeNb + " - Diplôme obtenu le " + degreeDate;
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy");
+        return "Etudiant " + id + " : " + firstName + " " + lastName + " - classe " + classeNb + " - Diplôme obtenu le " + simpleDateFormat.format(degreeDate);
     }
 }

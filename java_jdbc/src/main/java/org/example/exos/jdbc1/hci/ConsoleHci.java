@@ -1,7 +1,7 @@
 package org.example.exos.jdbc1.hci;
 
-import org.example.exos.jdbc1.classes.Student;
-import org.example.exos.jdbc1.util.ConnectDB;
+import org.example.exos.jdbc1.database.StudentManager;
+import org.example.exos.jdbc1.entity.Student;
 
 import java.sql.*;
 import java.text.ParseException;
@@ -12,25 +12,13 @@ import java.util.Scanner;
 
 public class ConsoleHci {
     private static final Scanner scanner = new Scanner(System.in);
-    private static Connection connection = null;
 
     public static void start() {
         try {
-            connection = ConnectDB.getPostgreConnection();
-
             menu();
-
         } catch (SQLException e) {
             System.out.println("Connexion BDD échouée");
             e.printStackTrace();
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
 
@@ -48,9 +36,9 @@ public class ConsoleHci {
             choice = inputChoice();
 
             switch (choice) {
-                case 0 -> System.out.println("A bientôt");
-                case 1 -> displayStudents(getAllStudents());
-                case 2 -> displayStudents(getStudentsByClass());
+                case 0 -> System.out.println("\nA bientôt");
+                case 1 -> displayAllStudents();
+                case 2 -> displayStudentsByClass();
                 case 3 -> addStudent();
                 case 4 -> deleteStudent();
                 default -> System.out.println("Veuillez saisir un nombre valide !");
@@ -75,14 +63,13 @@ public class ConsoleHci {
     private static Date checkDate() {
         Date date = null;
         do {
-            System.out.println("Date de diplôme (jj-mm-aaaa) : ");
             String inputDate = scanner.nextLine();
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy");
             try {
                 date = simpleDateFormat.parse(inputDate);
             } catch (ParseException e) {
                 e.printStackTrace();
-                System.out.println("Erreur de saisie de la date !");
+                System.out.println("Erreur de saisie de la date ! Recommencez : ");
             }
         } while (date == null);
         return date;
@@ -100,71 +87,33 @@ public class ConsoleHci {
         System.out.print("Numéro de classe : ");
         student.setClasseNb(scanner.nextInt());
         scanner.nextLine();
+        System.out.println("Date de diplôme (JJ-MM-AAAA) : ");
         student.setDegreeDate(checkDate());
 
-        // Ajout en BDD
-        String query = "INSERT INTO student (last_name, first_name, class_number, diploma_date) VALUES (?,?,?,?)";
-        PreparedStatement statement = connection.prepareStatement(query);
-        statement.setString(1, student.getLastName());
-        statement.setString(2, student.getFirstName());
-        statement.setInt(3, student.getClasseNb());
-        statement.setDate(4, new java.sql.Date(student.getDegreeDate().getTime()));
+        int rows = StudentManager.addStudent(student);
 
-        int rows = statement.executeUpdate();
         if (rows == 0) {
-            System.out.println("Erreur : l'étudiant n'a pas été ajouté à la base de données");
+            System.out.println("Erreur : l'étudiant n'a pas pu être ajouté à la base de données");
         } else {
             System.out.println("Ajout de " + rows + " étudiant dans la base de données");
         }
     }
 
-    private static ArrayList<Student> getAllStudents() throws SQLException {
-        ArrayList<Student> studentsList = new ArrayList<>();
-        System.out.println();
-        String query = "SELECT * FROM student";
-        Statement statement = connection.createStatement();
-        ResultSet results = statement.executeQuery(query);
-
-        while (results.next()) {
-            Student student = new Student(
-                    results.getInt("id"),
-                    results.getString("last_name"),
-                    results.getString("first_name"),
-                    results.getInt("class_number"),
-                    results.getDate("diploma_date")
-            );
-            studentsList.add(student);
+    private static void displayAllStudents() throws SQLException {
+        ArrayList<Student> studentsList = StudentManager.getAllStudents();
+        for (Student student : studentsList) {
+            System.out.println(student);
         }
-        return studentsList;
     }
 
-    private static ArrayList<Student> getStudentsByClass() throws SQLException {
+    private static void displayStudentsByClass() throws SQLException {
         int classNb;
-        ArrayList<Student> studentsList = new ArrayList<>();
         System.out.println();
         System.out.print("Entrez le numéro de la classe : ");
         classNb = scanner.nextInt();
         scanner.nextLine();
 
-        String query = "SELECT * FROM student WHERE class_number = ?";
-        PreparedStatement statement = connection.prepareStatement(query);
-        statement.setInt(1, classNb);
-        ResultSet results = statement.executeQuery();
-
-        while (results.next()) {
-            Student student = new Student(
-                    results.getInt("id"),
-                    results.getString("last_name"),
-                    results.getString("first_name"),
-                    results.getInt("class_number"),
-                    results.getDate("diploma_date")
-            );
-            studentsList.add(student);
-        }
-        return studentsList;
-    }
-
-    private static void displayStudents(ArrayList<Student> studentsList) {
+        ArrayList<Student> studentsList = StudentManager.getStudentsByClass(classNb);
         for (Student student : studentsList) {
             System.out.println(student);
         }
@@ -173,15 +122,13 @@ public class ConsoleHci {
     private static void deleteStudent() throws SQLException {
         System.out.println();
         System.out.println("Quel étudiant voulez-vous effacer ?");
-        displayStudents(getAllStudents());
+        displayAllStudents();
         int id = inputChoice();
-        
-        String query = "DELETE FROM student WHERE id = ?";
-        PreparedStatement statement = connection.prepareStatement(query);
-        statement.setInt(1, id);
-        int rows = statement.executeUpdate();
+
+        int rows = StudentManager.deleteStudentById(id);
+
         if (rows == 0) {
-            System.out.println("Erreur : l'étudiant n'a pas été effacé de la base de données");
+            System.out.println("Erreur : l'étudiant n'a pas pu être effacé de la base de données");
         } else {
             System.out.println("Suppression de " + rows + " étudiant de la base de données");
         }
